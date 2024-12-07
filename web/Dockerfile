@@ -1,4 +1,4 @@
-FROM node:lts-alpine as ente-builder
+FROM node:lts-alpine AS ente-builder
 
 WORKDIR /app
 
@@ -32,10 +32,10 @@ server {
 EOF
 
 ARG ENDPOINT="http://localhost:8080"
-ENV ENDPOINT "$ENDPOINT"
+ENV ENDPOINT="$ENDPOINT"
 
 ARG ALBUMS_ENDPOINT="http://localhost:8082"
-ENV ALBUMS_ENDPOINT "$ALBUMS_ENDPOINT"
+ENV ALBUMS_ENDPOINT="$ALBUMS_ENDPOINT"
 
 COPY <<EOF /docker-entrypoint.d/replace_ente_endpoints.sh
 echo "Replacing endpoints"
