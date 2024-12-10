@@ -1,18 +1,36 @@
-FROM node:lts-alpine AS ente-builder
+# the prebuilder compiles only what's needed to install deps
+# we want them to be cached for more efficient deploys when only modifying code
+FROM node:lts-alpine AS prebuild
 
 WORKDIR /app
+COPY ["package.json", "yarn.lock", "./"]
+COPY apps apps
+COPY packages packages
 
+# TODO: we should delete empty directories here too. it should be more flexible than -mindepth. until this is fixed it's possible that the dependency layer is recomputed when directory structure changes occur in directories without a package.json
+RUN find packages apps -type d -name "thirdparty" -prune -o -type f -not -name "package.json" -print | xargs rm -rf
+
+FROM node:lts-alpine AS builder
+
+# install deps
+WORKDIR /app
+COPY --from=prebuild /app .
+RUN yarn install  --immutable --immutable-cache --network-timeout 1000000
+
+
+# bring in src and restore workspace symlinks
 COPY . .
-RUN yarn install --network-timeout 1000000
+RUN yarn install --immutable --immutable-cache
 
 ENV NEXT_PUBLIC_ENTE_ENDPOINT=DOCKER_RUNTIME_REPLACE_ENDPOINT
 ENV NEXT_PUBLIC_ENTE_ALBUMS_ENDPOINT=DOCKER_RUNTIME_REPLACE_ALBUMS_ENDPOINT
 
+# build
 RUN yarn build
 
 FROM nginx:alpine
 
-COPY --from=ente-builder /app/apps/photos/out /usr/share/nginx/html
+COPY --from=builder /app/apps/photos/out /usr/share/nginx/html
 
 COPY <<EOF /etc/nginx/conf.d/default.conf
 server {
